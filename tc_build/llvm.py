@@ -10,6 +10,7 @@ import subprocess
 import time
 
 from tc_build.builder import Builder
+from tc_build.tools import Tools
 import tc_build.utils
 
 
@@ -25,13 +26,13 @@ class LLVMBuilder(Builder):
         super().__init__()
 
         self.bolt = False
-        self.bolt_builder = None
+        self.bolt_builder: Builder | None = None
         self.build_targets = ['all']
         self.ccache = False
         self.check_targets = []
         self.cmake_defines = {}
         self.install_targets = []
-        self.tools = None
+        self.tools: Tools | None = None
         self.projects = []
         self.quiet_cmake = False
         self.targets = []

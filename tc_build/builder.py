@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
 import shlex
 import shutil
 import subprocess
@@ -7,9 +8,9 @@ import subprocess
 
 class Folders:
     def __init__(self):
-        self.build = None
-        self.install = None
-        self.source = None
+        self.build: Path | None = None
+        self.install: Path | None = None
+        self.source: Path | None = None
 
 
 class Builder:

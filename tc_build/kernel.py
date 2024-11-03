@@ -342,7 +342,7 @@ class LLVMKernelBuilder(Builder):
         self.bolt_instrumentation = False
         self.bolt_sampling_output = None
         self.matrix = {}
-        self.toolchain_prefix = None
+        self.toolchain_prefix: Path | None = None
 
     def build(self):
         lsm = LinuxSourceManager()

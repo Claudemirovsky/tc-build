@@ -10,8 +10,19 @@ import subprocess
 import tc_build.utils
 
 
-class HostTools:
+class Tools:
     def __init__(self):
+        self.clang_tblgen: Path | None = None
+        self.llvm_bolt: Path | None = None
+        self.llvm_profdata: Path | None = None
+        self.llvm_tblgen: Path | None = None
+        self.merge_fdata: Path | None = None
+        self.perf2bolt: Path | None = None
+
+
+class HostTools(Tools):
+    def __init__(self):
+        super().__init__()
         self.cc = self.find_host_cc()
         self.cc_is_clang = 'clang' in self.cc.name
 
@@ -19,13 +30,6 @@ class HostTools:
         self.cxx = self.find_host_cxx()
         self.ld = self.find_host_ld()
         self.ranlib = self.find_host_ranlib()
-
-        self.clang_tblgen = None
-        self.llvm_bolt = None
-        self.llvm_profdata = None
-        self.llvm_tblgen = None
-        self.merge_fdata = None
-        self.perf2bolt = None
 
     def find_host_ar(self):
         # GNU ar is the default, no need for llvm-ar if using GCC
@@ -163,8 +167,9 @@ class HostTools:
         return ld
 
 
-class StageTools:
+class StageTools(Tools):
     def __init__(self, bin_folder):
+        super().__init__()
         # Used by cmake
         self.ar = Path(bin_folder, 'llvm-ar')
         self.cc = Path(bin_folder, 'clang')

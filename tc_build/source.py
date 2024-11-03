@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import hashlib
+from pathlib import Path
 import re
 import subprocess
 
@@ -12,8 +13,8 @@ BYTES_TO_READ = 131072
 
 class Tarball:
     def __init__(self):
-        self.base_download_url = None
-        self.local_location = None
+        self.base_download_url: str | None = None
+        self.local_location: Path | None = None
         self.remote_tarball_name = None
         self.remote_checksum_name = ''
 
