@@ -2,7 +2,7 @@ import platform
 import time
 from argparse import Namespace
 from pathlib import Path
-
+import sys
 import tc_build.utils
 from tc_build.kernel import KernelBuilder, LinuxSourceManager, LLVMKernelBuilder
 from tc_build.llvm import (
@@ -14,6 +14,20 @@ from tc_build.llvm import (
     LLVMSourceManager,
 )
 from tc_build.tools import HostTools, StageTools
+
+
+def build_stage(title):
+    def wrapper1(func):
+        def wrapper2(self):
+            tc_build.utils.print_header(title)
+            func(self)
+            if self.args.stage:
+                tc_build.utils.print_info(title + ' done.')
+                sys.exit(0)
+
+        return wrapper2
+
+    return wrapper1
 
 
 class LLVMStages:
@@ -163,9 +177,8 @@ class LLVMStages:
         else:
             instance.tools = self.host_tools
 
+    @build_stage("Building LLVM (bootstrap)")
     def bootstrap(self):
-        tc_build.utils.print_header('Building LLVM (bootstrap)')
-
         bootstrap = LLVMBootstrapBuilder()
         bootstrap.build_targets = ['distribution']
         bootstrap.ccache = not self.args.no_ccache
@@ -203,14 +216,14 @@ class LLVMStages:
 
         return instrumented
 
+    @build_stage("Building LLVM (instrumented)")
     def instrumentation(self):
         self.instrumented = self.setup_instrumentation()
-        tc_build.utils.print_header('Building LLVM (instrumented)')
         self.instrumented.configure()
         self.instrumented.build()
 
+    @build_stage("Generating PGO profiles")
     def profiling(self):
-        tc_build.utils.print_header('Generating PGO profiles')
         instrumented = self.instrumented if self.instrumented else self.setup_instrumentation()
         pgo_builders = []
         if 'llvm' in self.args.pgo:
@@ -287,6 +300,7 @@ class LLVMStages:
 
         instrumented.generate_profdata()
 
+    @build_stage("Building LLVM (final)")
     def final_step(self):
         final = self.final
         final.build_targets = self.args.build_targets
@@ -335,7 +349,6 @@ class LLVMStages:
                 llvm_targets = final.targets[0:1]
             final.bolt_builder.matrix['defconfig'] = llvm_targets
 
-        tc_build.utils.print_header('Building LLVM (final)')
         final.configure()
         final.build()
         final.show_install_info()

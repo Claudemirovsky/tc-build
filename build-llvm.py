@@ -399,6 +399,12 @@ clone_options.add_argument(
     action='store_true',
 )
 parser.add_argument(
+    "-S",
+    "--stage",
+    help="Only run a single specific build stage",
+    choices=["bootstrap", "instrumentation", "profiling", "final"],
+)
+parser.add_argument(
     '--show-build-commands',
     help=textwrap.dedent('''\
                     By default, the script only shows the output of the comands it is running. When this option
@@ -471,16 +477,19 @@ else:
 stages = LLVMStages(args, src_folder, build_folder, DEFAULT_KERNEL_FOR_PGO)
 
 # Build bootstrap compiler if user did not request a single stage build
-if use_bootstrap := not args.build_stage1_only:
+if (use_bootstrap := not args.build_stage1_only) and (not args.stage or args.stage == "bootstrap"):
     stages.bootstrap()
 
 stages.update_defines()
 
 if args.pgo:
-    stages.instrumentation()
-    stages.profiling()
+    if not args.stage or args.stage == "instrumentation":
+        stages.instrumentation()
+    if not args.stage or args.stage == "profiling":
+        stages.profiling()
 
-# Final build
-stages.final_step()
+if not args.stage or args.stage == "final":
+    # Final build
+    stages.final_step()
 
 print(f"Script duration: {tc_build.utils.get_duration(script_start)}")
