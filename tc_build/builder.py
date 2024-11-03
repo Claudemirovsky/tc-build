@@ -6,7 +6,6 @@ import subprocess
 
 
 class Folders:
-
     def __init__(self):
         self.build = None
         self.install = None
@@ -14,7 +13,6 @@ class Folders:
 
 
 class Builder:
-
     def __init__(self):
         self.folders = Folders()
         self.show_commands = False

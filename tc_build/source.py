@@ -11,7 +11,6 @@ BYTES_TO_READ = 131072
 
 
 class Tarball:
-
     def __init__(self):
         self.base_download_url = None
         self.local_location = None
@@ -38,8 +37,11 @@ class Tarball:
         # and finally compare the two.
         if self.remote_checksum_name:
             checksums = tc_build.utils.curl(f"{self.base_download_url}/{self.remote_checksum_name}")
-            if not (match := re.search(
-                    fr"([0-9a-f]+)\s+{self.remote_tarball_name}$", checksums, flags=re.M)):
+            if not (
+                match := re.search(
+                    rf"([0-9a-f]+)\s+{self.remote_tarball_name}$", checksums, flags=re.M
+                )
+            ):
                 raise RuntimeError(f"Could not find checksum for {self.remote_tarball_name}?")
 
             if 'sha256' in self.remote_checksum_name:
@@ -48,9 +50,10 @@ class Tarball:
                 file_hash = hashlib.sha512()
             else:
                 raise RuntimeError(
-                    f"No supported hashlib for {self.remote_checksum_name}, add support for it?")
+                    f"No supported hashlib for {self.remote_checksum_name}, add support for it?"
+                )
             with self.local_location.open('rb') as file:
-                while (data := file.read(BYTES_TO_READ)):
+                while data := file.read(BYTES_TO_READ):
                     file_hash.update(data)
 
             computed_checksum = file_hash.hexdigest()
@@ -65,7 +68,8 @@ class Tarball:
             raise RuntimeError('No local tarball location specified?')
         if not self.local_location.exists():
             raise RuntimeError(
-                f"Local tarball ('{self.local_location}') could not be found, download it first?")
+                f"Local tarball ('{self.local_location}') could not be found, download it first?"
+            )
 
         extraction_location.mkdir(exist_ok=True, parents=True)
         tar_cmd = [
@@ -82,7 +86,6 @@ class Tarball:
 
 
 class SourceManager:
-
     def __init__(self, location=None):
         self.location = location
         self.tarball = Tarball()

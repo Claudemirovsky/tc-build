@@ -21,7 +21,6 @@ def get_all_targets(llvm_folder):
 
 
 class LLVMBuilder(Builder):
-
     def __init__(self):
         super().__init__()
 
@@ -88,13 +87,16 @@ class LLVMBuilder(Builder):
             # inspected.
             merge_fdata_log = Path(self.folders.build, 'merge-fdata.log')
 
-            with bolt_profile.open('w', encoding='utf-8') as out_file, \
-                 merge_fdata_log.open('w', encoding='utf-8') as err_file:
+            with bolt_profile.open('w', encoding='utf-8') as out_file, merge_fdata_log.open(
+                'w', encoding='utf-8'
+            ) as err_file:
                 tc_build.utils.print_info('Merging .fdata files, this might take a while...')
-                subprocess.run([self.tools.merge_fdata, *list(fdata_files)],
-                               check=True,
-                               stderr=err_file,
-                               stdout=out_file)
+                subprocess.run(
+                    [self.tools.merge_fdata, *list(fdata_files)],
+                    check=True,
+                    stderr=err_file,
+                    stdout=out_file,
+                )
             for fdata_file in fdata_files:
                 fdata_file.unlink()
 
@@ -219,7 +221,8 @@ class LLVMBuilder(Builder):
                 self.cmake_defines['CMAKE_CXX_COMPILER_LAUNCHER'] = 'ccache'
             else:
                 tc_build.utils.print_warning(
-                    'ccache requested but could not be found on your system, ignoring...')
+                    'ccache requested but could not be found on your system, ignoring...'
+                )
 
         if self.tools.clang_tblgen:
             self.cmake_defines['CLANG_TABLEGEN'] = self.tools.clang_tblgen
@@ -287,10 +290,9 @@ class LLVMBuilder(Builder):
         # toolchain, as this may not be portable. Since distribution is not a
         # primary goal of tc-build, this is not abstracted further.
         if shutil.which('clang') and not os.environ.get('DISTRIBUTING'):
-            default_target_triple = subprocess.run(['clang', '-print-target-triple'],
-                                                   capture_output=True,
-                                                   check=True,
-                                                   text=True).stdout.strip()
+            default_target_triple = subprocess.run(
+                ['clang', '-print-target-triple'], capture_output=True, check=True, text=True
+            ).stdout.strip()
             self.cmake_defines['LLVM_DEFAULT_TARGET_TRIPLE'] = default_target_triple
 
         cmake_cmd += [f'-D{key}={self.cmake_defines[key]}' for key in sorted(self.cmake_defines)]
@@ -333,12 +335,14 @@ class LLVMBuilder(Builder):
             raise RuntimeError('bin folder does not exist in installation folder, run build()?')
 
         tc_build.utils.print_header('LLVM installation information')
-        install_info = (f"Toolchain is available at: {install_folder}\n\n"
-                        'To use, either run:\n\n'
-                        f"\t$ export PATH={bin_folder}:$PATH\n\n"
-                        'or add:\n\n'
-                        f"\tPATH={bin_folder}:$PATH\n\n"
-                        'before the command you want to use this toolchain.\n')
+        install_info = (
+            f"Toolchain is available at: {install_folder}\n\n"
+            'To use, either run:\n\n'
+            f"\t$ export PATH={bin_folder}:$PATH\n\n"
+            'or add:\n\n'
+            f"\tPATH={bin_folder}:$PATH\n\n"
+            'before the command you want to use this toolchain.\n'
+        )
         print(install_info)
 
         for tool in ['clang', 'ld.lld']:
@@ -368,7 +372,6 @@ class LLVMBuilder(Builder):
 
 
 class LLVMSlimBuilder(LLVMBuilder):
-
     def configure(self):
         # yapf: disable
         slim_clang_defines = {
@@ -444,7 +447,6 @@ class LLVMSlimBuilder(LLVMBuilder):
 
 
 class LLVMBootstrapBuilder(LLVMSlimBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -465,7 +467,6 @@ class LLVMBootstrapBuilder(LLVMSlimBuilder):
 
 
 class LLVMInstrumentedBuilder(LLVMBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -524,7 +525,6 @@ class LLVMSlimInstrumentedBuilder(LLVMInstrumentedBuilder, LLVMSlimBuilder):
 
 
 class LLVMSourceManager:
-
     def __init__(self, repo):
         self.repo = repo
 
@@ -558,11 +558,9 @@ class LLVMSourceManager:
         self.git(['checkout', ref])
 
     def git(self, cmd, capture_output=False):
-        return subprocess.run(['git', *cmd],
-                              capture_output=capture_output,
-                              check=True,
-                              cwd=self.repo,
-                              text=True)
+        return subprocess.run(
+            ['git', *cmd], capture_output=capture_output, check=True, cwd=self.repo, text=True
+        )
 
     def git_capture(self, cmd):
         return self.git(cmd, capture_output=True).stdout.strip()

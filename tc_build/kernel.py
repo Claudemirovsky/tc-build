@@ -13,7 +13,6 @@ import tc_build.utils
 
 
 class KernelBuilder(Builder):
-
     # If the user supplies their own kernel source, it must be at least this
     # version to ensure that all the build commands work, as the build commands
     # were written to target at least this version.
@@ -82,8 +81,9 @@ class KernelBuilder(Builder):
             kconfig_allconfig = NamedTemporaryFile(dir=self.folders.build)  # noqa: SIM115
 
             configs_to_disable = ['DRM_WERROR', 'WERROR']
-            kconfig_allconfig_text = ''.join(f"CONFIG_{val}=n\n"
-                                             for val in configs_to_disable).encode('utf-8')
+            kconfig_allconfig_text = ''.join(
+                f"CONFIG_{val}=n\n" for val in configs_to_disable
+            ).encode('utf-8')
 
             kconfig_allconfig.write(kconfig_allconfig_text)
             kconfig_allconfig.seek(0)
@@ -125,20 +125,20 @@ class KernelBuilder(Builder):
 
         clang_cmd = [clang, '-E', '-P', '-x', 'c', '-']
         clang_input = '__clang_major__ __clang_minor__ __clang_patchlevel__'
-        clang_output = subprocess.run(clang_cmd,
-                                      capture_output=True,
-                                      check=True,
-                                      input=clang_input,
-                                      text=True).stdout.strip()
+        clang_output = subprocess.run(
+            clang_cmd, capture_output=True, check=True, input=clang_input, text=True
+        ).stdout.strip()
 
         return tuple(int(elem) for elem in clang_output.split(' '))
 
     def can_use_clang_as_hostcc(self):
         clang = Path(self.toolchain_prefix, 'bin/clang')
         try:
-            subprocess.run([clang, '-x', 'c', '-c', '-o', '/dev/null', '/dev/null'],
-                           capture_output=True,
-                           check=True)
+            subprocess.run(
+                [clang, '-x', 'c', '-c', '-o', '/dev/null', '/dev/null'],
+                capture_output=True,
+                check=True,
+            )
         except subprocess.CalledProcessError:
             return False
         return True
@@ -148,7 +148,6 @@ class KernelBuilder(Builder):
 
 
 class ArmKernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('arm')
 
@@ -159,7 +158,6 @@ class ArmKernelBuilder(KernelBuilder):
 
 
 class ArmV5KernelBuilder(ArmKernelBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -167,7 +165,6 @@ class ArmV5KernelBuilder(ArmKernelBuilder):
 
 
 class ArmV6KernelBuilder(ArmKernelBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -175,7 +172,6 @@ class ArmV6KernelBuilder(ArmKernelBuilder):
 
 
 class ArmV7KernelBuilder(ArmKernelBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -183,19 +179,16 @@ class ArmV7KernelBuilder(ArmKernelBuilder):
 
 
 class Arm64KernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('arm64')
 
 
 class HexagonKernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('hexagon')
 
 
 class LoongArchKernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('loongarch')
 
@@ -212,7 +205,6 @@ class LoongArchKernelBuilder(KernelBuilder):
 
 
 class MIPSKernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('mips')
 
@@ -220,7 +212,6 @@ class MIPSKernelBuilder(KernelBuilder):
 
 
 class PowerPCKernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('powerpc')
 
@@ -229,7 +220,6 @@ class PowerPCKernelBuilder(KernelBuilder):
 
 
 class PowerPC32KernelBuilder(PowerPCKernelBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -238,7 +228,6 @@ class PowerPC32KernelBuilder(PowerPCKernelBuilder):
 
 
 class PowerPC64KernelBuilder(PowerPCKernelBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -255,7 +244,6 @@ class PowerPC64KernelBuilder(PowerPCKernelBuilder):
 
 
 class PowerPC64LEKernelBuilder(PowerPC64KernelBuilder):
-
     def __init__(self):
         super().__init__()
 
@@ -272,7 +260,6 @@ class PowerPC64LEKernelBuilder(PowerPC64KernelBuilder):
 
 
 class RISCVKernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('riscv')
 
@@ -284,7 +271,6 @@ class RISCVKernelBuilder(KernelBuilder):
 
 
 class S390KernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('s390')
 
@@ -295,7 +281,8 @@ class S390KernelBuilder(KernelBuilder):
         if self.toolchain_version <= (15, 0, 0):
             # https://git.kernel.org/linus/30d17fac6aaedb40d111bb159f4b35525637ea78
             tc_build.utils.print_warning(
-                's390 does not build with LLVM < 15.0.0, skipping build...')
+                's390 does not build with LLVM < 15.0.0, skipping build...'
+            )
             return
 
         # LD: https://github.com/ClangBuiltLinux/linux/issues/1524
@@ -303,22 +290,31 @@ class S390KernelBuilder(KernelBuilder):
         gnu_vars = []
 
         # https://github.com/llvm/llvm-project/pull/75643
-        lld_res = subprocess.run([Path(self.toolchain_prefix, 'bin/ld.lld'), '-m', 'elf64_s390'],
-                                 capture_output=True,
-                                 check=False,
-                                 text=True)
+        lld_res = subprocess.run(
+            [Path(self.toolchain_prefix, 'bin/ld.lld'), '-m', 'elf64_s390'],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
         if 'error: unknown emulation:' in lld_res.stderr:
             gnu_vars.append('LD')
 
         # https://github.com/llvm/llvm-project/pull/81841
-        objcopy_res = subprocess.run([
-            Path(self.toolchain_prefix, 'bin/llvm-objcopy'), '-I', 'binary', '-O', 'elf64-s390',
-            '-', '/dev/null'
-        ],
-                                     capture_output=True,
-                                     check=False,
-                                     input='',
-                                     text=True)
+        objcopy_res = subprocess.run(
+            [
+                Path(self.toolchain_prefix, 'bin/llvm-objcopy'),
+                '-I',
+                'binary',
+                '-O',
+                'elf64-s390',
+                '-',
+                '/dev/null',
+            ],
+            capture_output=True,
+            check=False,
+            input='',
+            text=True,
+        )
         if 'error: invalid output format:' in objcopy_res.stderr:
             gnu_vars.append('OBJCOPY')
 
@@ -335,13 +331,11 @@ class S390KernelBuilder(KernelBuilder):
 
 
 class X8664KernelBuilder(KernelBuilder):
-
     def __init__(self):
         super().__init__('x86_64')
 
 
 class LLVMKernelBuilder(Builder):
-
     def __init__(self):
         super().__init__()
 
@@ -415,18 +409,19 @@ class LLVMKernelBuilder(Builder):
 
 
 class LinuxSourceManager(SourceManager):
-
     def __init__(self, location=None):
         super().__init__(location)
 
         self.patches = []
 
     def get_kernelversion(self):
-        return subprocess.run(['make', '-s', 'kernelversion'],
-                              capture_output=True,
-                              check=True,
-                              cwd=self.location,
-                              text=True).stdout.strip()
+        return subprocess.run(
+            ['make', '-s', 'kernelversion'],
+            capture_output=True,
+            check=True,
+            cwd=self.location,
+            text=True,
+        ).stdout.strip()
 
     # Dynamically get the version of the supplied kernel source as a tuple,
     # which can be used to check if a provided kernel source is at least a
