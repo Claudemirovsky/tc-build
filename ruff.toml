@@ -1,32 +1,36 @@
 target-version = 'py38'
+line-length = 100
 
 # https://docs.astral.sh/ruff/rules/
+[format]
+quote-style = "preserve"
+
 [lint]
 select = [
-    'A', # flake8-builtins
+    'A',   # flake8-builtins
     'ARG', # flake8-unused-arguments
-    'B', # flake8-bugbear
-    'C4', # flake8-comprehensions
-    'E', # pycodestyle
-    'F', # pyflakes
+    'B',   # flake8-bugbear
+    'C4',  # flake8-comprehensions
+    'E',   # pycodestyle
+    'F',   # pyflakes
     'PIE', # flake8-pie
-    'PL', # pylint
+    'PL',  # pylint
     'PTH', # flake8-use-pathlib
     'RET', # flake8-return
     'RUF', # ruff
-    'S', # flake8-bandit
+    'S',   # flake8-bandit
     'SIM', # flake8-simplify
     'SLF', # flake8-self
-    'UP', # pyupgrade
-    'W', # pycodestyle
+    'UP',  # pyupgrade
+    'W',   # pycodestyle
 ]
 ignore = [
-    'E501', # line-too-long
+    'E501',    # line-too-long
     'PLR0911', # too-many-return-statments
     'PLR0912', # too-many-branches
     'PLR0913', # too-many-arguments
     'PLR0915', # too-many-statements
     'PLR2004', # magic-value-comparison
-    'S603', # subprocess-without-shell-equals-true
-    'S607', # start-process-with-partial-path
+    'S603',    # subprocess-without-shell-equals-true
+    'S607',    # start-process-with-partial-path
 ]
