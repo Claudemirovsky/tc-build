@@ -350,6 +350,12 @@ opt_options.add_argument(
         'llvm',
     ],
 )
+
+parser.add_argument(
+    '--cspgo',
+    help="Enables Context-Sensitive PGO. Requires enabling normal PGO.",
+    action="store_true",
+)
 parser.add_argument(
     '--quiet-cmake',
     help=textwrap.dedent('''\
@@ -402,7 +408,14 @@ parser.add_argument(
     "-S",
     "--stage",
     help="Only run a single specific build stage",
-    choices=["bootstrap", "instrumentation", "profiling", "final"],
+    choices=[
+        "bootstrap",
+        "instrumentation",
+        "profiling",
+        "csinstrumentation",
+        "csprofiling",
+        "final",
+    ],
 )
 parser.add_argument(
     '--show-build-commands',
@@ -488,8 +501,15 @@ if args.pgo:
     if not args.stage or args.stage == "profiling":
         stages.profiling()
 
+    if args.cspgo:
+        if not args.stage or args.stage == "csinstrumentation":
+            stages.instrumentation(cspgo=True)
+        if not args.stage or args.stage == "csprofiling":
+            stages.profiling(cspgo=True)
 if not args.stage or args.stage == "final":
     # Final build
+    if args.pgo and not stages.instrumented:
+        stages.instrumented = stages.setup_instrumentation(cspgo=args.cspgo)
     stages.final_step()
 
 print(f"Script duration: {tc_build.utils.get_duration(script_start)}")

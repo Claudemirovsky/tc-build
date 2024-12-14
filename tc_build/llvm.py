@@ -468,12 +468,31 @@ class LLVMBootstrapBuilder(LLVMSlimBuilder):
 
 
 class LLVMInstrumentedBuilder(LLVMBuilder):
+    final_name = 'pgo-profdata.prof'
+    vp_counters = '6'
+
     def __init__(self):
         super().__init__()
 
         self.cmake_defines['LLVM_BUILD_INSTRUMENTED'] = 'IR'
         self.cmake_defines['LLVM_BUILD_RUNTIME'] = 'OFF'
         self.cmake_defines['LLVM_LINK_LLVM_DYLIB'] = 'ON'
+        self.profdata_name = self.final_name
+
+    @property
+    def profiles_path(self):
+        if self.folders.build is not None:
+            return self.folders.build.joinpath('profiles')
+        return None
+
+    @property
+    def profiles_output_path(self):
+        if self.folders.build is None:
+            raise Exception("Failure to get profiles output path: build folder is None")
+        path = self.folders.build.parent.joinpath("output_profiles")
+        if not path.exists():
+            path.mkdir()
+        return path
 
     def configure(self):
         # The following defines are needed to avoid thousands of warnings
@@ -483,7 +502,7 @@ class LLVMInstrumentedBuilder(LLVMBuilder):
         cmake_options = Path(self.folders.source, 'llvm/cmake/modules/HandleLLVMOptions.cmake')
         cmake_text = cmake_options.read_text(encoding='utf-8')
         if 'LLVM_VP_COUNTERS_PER_SITE' in cmake_text:
-            self.cmake_defines['LLVM_VP_COUNTERS_PER_SITE'] = '6'
+            self.cmake_defines['LLVM_VP_COUNTERS_PER_SITE'] = self.vp_counters
         else:
             cflags = []
             cxxflags = []
@@ -497,7 +516,7 @@ class LLVMInstrumentedBuilder(LLVMBuilder):
                 '-Xclang',
                 '-mllvm',
                 '-Xclang',
-                '-vp-counters-per-site=6',
+                '-vp-counters-per-site=' + self.vp_counters,
             ]
             cflags += vp_counters
             cxxflags += vp_counters
@@ -507,21 +526,62 @@ class LLVMInstrumentedBuilder(LLVMBuilder):
 
         super().configure()
 
-    def generate_profdata(self):
-        if not (profiles := list(self.folders.build.joinpath('profiles').glob('*.profraw'))):
-            raise RuntimeError('No profiles generated?')
+    def merge_profiles(self, output: str, *profiles: Path):
+        if not self.tools or not self.folders.build:
+            raise Exception("Failed to merge profiles.")
 
         llvm_prof_data_cmd = [
             self.tools.llvm_profdata,
             'merge',
-            f"-output={Path(self.folders.build, 'profdata.prof')}",
+            f"-output={Path(self.profiles_output_path, output)}",
             *profiles,
         ]
         subprocess.run(llvm_prof_data_cmd, check=True)
 
+    def generate_profdata(self):
+        if not (profiles := list(self.profiles_path.glob('*.profraw'))):
+            raise RuntimeError('No profiles generated?')
+
+        self.merge_profiles(self.profdata_name, *profiles)
+
 
 class LLVMSlimInstrumentedBuilder(LLVMInstrumentedBuilder, LLVMSlimBuilder):
     # No methods to override, this class inherits everyting from these super classes
+    pass
+
+
+class LLVMCSPGOInstrumentedBuilder(LLVMInstrumentedBuilder):
+    final_name = 'final-profdata.prof'
+    vp_counters = '128'
+
+    def __init__(self):
+        super().__init__()
+        self.cmake_defines['LLVM_BUILD_INSTRUMENTED'] = 'CSIR'
+        self.profdata_name = 'cspgo-profdata.prof'
+
+    @property
+    def profiles_path(self):
+        if self.folders.build is not None:
+            return self.folders.build.joinpath('csprofiles')
+        return None
+
+    def configure(self):
+        self.cmake_defines['LLVM_PROFDATA_FILE'] = Path(
+            self.profiles_output_path, super().final_name
+        )
+        return super().configure()
+
+    def generate_profdata(self):
+        profiles_path = self.profiles_output_path
+        super().generate_profdata()
+        profiles = [
+            Path(profiles_path, self.profdata_name),
+            Path(profiles_path, super().final_name),
+        ]
+        self.merge_profiles(self.final_name, *profiles)
+
+
+class LLVMSlimCSPGOInstrumentedBuilder(LLVMCSPGOInstrumentedBuilder, LLVMSlimBuilder):
     pass
 
 

@@ -8,8 +8,10 @@ from tc_build.kernel import KernelBuilder, LinuxSourceManager, LLVMKernelBuilder
 from tc_build.llvm import (
     LLVMBootstrapBuilder,
     LLVMBuilder,
+    LLVMCSPGOInstrumentedBuilder,
     LLVMInstrumentedBuilder,
     LLVMSlimBuilder,
+    LLVMSlimCSPGOInstrumentedBuilder,
     LLVMSlimInstrumentedBuilder,
     LLVMSourceManager,
 )
@@ -18,9 +20,9 @@ from tc_build.tools import HostTools, StageTools
 
 def build_stage(title):
     def wrapper1(func):
-        def wrapper2(self):
+        def wrapper2(self, *args, **kwargs):
             tc_build.utils.print_header(title)
-            func(self)
+            func(self, *args, **kwargs)
             if self.args.stage:
                 tc_build.utils.print_info(title + ' done.')
                 sys.exit(0)
@@ -40,7 +42,9 @@ class LLVMStages:
         self.build_folder = build_folder
         self.bootstrap_dir = build_folder / "bootstrap"
         self.instrumentation_dir = build_folder / "instrumentation"
+        self.cspgo_instrumentation_dir = build_folder / "cspgo_instrumentation"
         self.profiling_dir = build_folder / "profiling"
+        self.cspgo_profiling_dir = build_folder / "cspgo_profiling"
         self.final_dir = build_folder / "final"
         # Validate and prepare Linux source if doing BOLT or PGO with kernel benchmarks
         # Check for issues early, as these technologies are time consuming, so a user
@@ -204,31 +208,41 @@ class LLVMStages:
         if self.args.build_type:
             self.common_cmake_defines['CMAKE_BUILD_TYPE'] = self.args.build_type
 
-    def setup_instrumentation(self) -> LLVMInstrumentedBuilder:
-        if self.args.full_toolchain:
-            instrumented = LLVMInstrumentedBuilder()
-        else:
-            instrumented = LLVMSlimInstrumentedBuilder()
+    def setup_instrumentation(self, cspgo: bool = False) -> LLVMInstrumentedBuilder:
+        choices = (
+            (LLVMSlimInstrumentedBuilder, LLVMInstrumentedBuilder),
+            (LLVMSlimCSPGOInstrumentedBuilder, LLVMCSPGOInstrumentedBuilder),
+        )
+        instrumented = choices[cspgo][self.args.full_toolchain]()
+
         instrumented.build_targets = ['all' if self.args.full_toolchain else 'distribution']
         # We run the tests on the instrumented stage if the LLVM benchmark was enabled
         instrumented.check_targets = self.args.check_targets if 'llvm' in self.args.pgo else []
-        self.configure_llvm_builder(instrumented, self.instrumentation_dir, self.bootstrap_dir)
+        instrumentation_dir = self.cspgo_instrumentation_dir if cspgo else self.instrumentation_dir
+        self.configure_llvm_builder(instrumented, instrumentation_dir, self.bootstrap_dir)
 
         return instrumented
 
     @build_stage("Building LLVM (instrumented)")
-    def instrumentation(self):
-        self.instrumented = self.setup_instrumentation()
+    def instrumentation(self, cspgo: bool = False):
+        self.instrumented = self.setup_instrumentation(cspgo=cspgo)
         self.instrumented.configure()
         self.instrumented.build()
 
     @build_stage("Generating PGO profiles")
-    def profiling(self):
-        instrumented = self.instrumented if self.instrumented else self.setup_instrumentation()
+    def profiling(self, cspgo: bool = False):
+        instrumented = (
+            self.instrumented if self.instrumented else self.setup_instrumentation(cspgo=cspgo)
+        )
         pgo_builders = []
+        items = (
+            (self.profiling_dir, self.instrumentation_dir),
+            (self.cspgo_profiling_dir, self.cspgo_instrumentation_dir),
+        )
+        profiling_dir, instrumentation_dir = items[cspgo]
         if 'llvm' in self.args.pgo:
             llvm_builder = self.def_llvm_builder_cls()
-            self.configure_llvm_builder(llvm_builder, self.profiling_dir, self.instrumentation_dir)
+            self.configure_llvm_builder(llvm_builder, profiling_dir, instrumentation_dir)
             # clang-tblgen and llvm-tblgen may not be available from the
             # instrumented folder if the user did not pass '--full-toolchain', as
             # only the tools included in the distribution will be available. In
@@ -256,7 +270,7 @@ class LLVMStages:
             kernel_builder = LLVMKernelBuilder()
             kernel_builder.folders.build = Path(self.build_folder, 'linux')
             kernel_builder.folders.source = self.lsm.location if self.lsm else None
-            kernel_builder.toolchain_prefix = self.instrumentation_dir
+            kernel_builder.toolchain_prefix = instrumentation_dir
             for item in pgo_targets:
                 pgo_target = item.split('-')
 
@@ -319,7 +333,7 @@ class LLVMStages:
             and self.instrumented.folders.build is not None
         ):
             final.cmake_defines['LLVM_PROFDATA_FILE'] = Path(
-                self.instrumented.folders.build, 'profdata.prof'
+                self.instrumented.profiles_output_path, self.instrumented.final_name
             )
 
         if self.args.build_stage1_only:
