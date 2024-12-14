@@ -451,7 +451,7 @@ class LLVMBootstrapBuilder(LLVMSlimBuilder):
     def __init__(self):
         super().__init__()
 
-        self.projects = ['clang', 'lld']
+        self.projects = ['clang', 'lld', 'polly']
         self.targets = ['host']
 
     def configure(self):
